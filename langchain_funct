@@ -1,0 +1,9 @@
+1st- LangChain is used to parse the content into a dicctionary form in python so that the data is 
+     properly managed
+2nd- LLM cannot store memory so Langchain helps to store the converstions, we can view it trough various ways like
+     like the last chat or the token limit, it even generates a summary if the convo is long 
+3rd- langchain helps in the formation of chain like the 
+        sequential chain(it is a simple chain where 1 input is given and it is passed through varios prompt and ans is given)
+        router chain(checks which is the chain which is needed for this topics and based on that uses that data and gives the ouytput)
+4th- LLM cannot be used 
+![alt text](image.png)

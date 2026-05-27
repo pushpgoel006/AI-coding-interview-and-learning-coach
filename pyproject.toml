@@ -12,6 +12,8 @@ dependencies = [
     "langchain-ollama>=1.1.0",
     "langgraph>=1.2.0",
     "python-dotenv>=1.2.2",
+    "requests>=2.34.2",
     "sqlalchemy>=2.0.50",
+    "streamlit>=1.57.0",
     "uvicorn>=0.47.0",
 ]
