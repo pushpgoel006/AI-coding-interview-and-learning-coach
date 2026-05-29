@@ -5,11 +5,12 @@ from agents.evaluator import evaluate_answer
 from graphs.interview_graph import interview_graph
 from database.models import Interview
 from database.db import  SessionLocal
-
+from fastapi.responses import StreamingResponse
+from agents.question_generator import stream_question
 import uuid
 
 app = FastAPI() 
-
+#pydantic library
 class JDRequest(BaseModel):
     jd: str
 
@@ -21,6 +22,9 @@ class InterviewRequest(BaseModel):
     jd: str
     answer: str
 
+class StreamQuestionRequest(BaseModel):
+    session_id: str
+    jd: str
 
 @app.get("/")
 def home():
@@ -92,3 +96,25 @@ def start_interview(data: InterviewRequest):
     })
 
     return result
+
+# adding a new endpoint for SSE streaming
+@app.post("/stream-question")
+def stream_question_api(data: StreamQuestionRequest):
+    return StreamingResponse(
+        stream_question(
+            data.jd,
+            data.session_id
+            ),
+        media_type="text/plain"
+    )
+
+
+#firstly creating a session id which can be used to save the question generated in chunks
+@app.post("/create-session")
+def create_session(data: JDRequest):
+
+    session_id = str(uuid.uuid4())
+
+    return {
+        "session_id": session_id
+    }
