@@ -7,7 +7,7 @@ def get_llm():
     provider=os.getenv("LLM_PROVIDER","groq")
     if provider =="groq":
         return ChatGroq(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-120b",
             api_key=os.getenv("GROQ_API_KEY")
         )
     else:
