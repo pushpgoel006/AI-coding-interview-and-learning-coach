@@ -14,11 +14,15 @@ from rag.splitter import split_documents
 from rag.vector_store import create_vector_store
 
 
-def index_documents(file_paths: Iterable[str | Path]) -> int:
-    """Load, split, and replace the persistent index with uploaded PDFs.
+def index_documents(
+    file_paths: Iterable[str | Path], session_id: str, doc_type: str = "company"
+) -> int:
+    """Load, split, and add uploaded PDFs to a prep session's index.
 
     Args:
         file_paths: Paths to PDF files that have already been saved locally.
+        session_id: The prep session these documents belong to.
+        doc_type: One of company / jd / resume / notes / experience.
 
     Returns:
         The number of chunks created and stored.
@@ -42,24 +46,26 @@ def index_documents(file_paths: Iterable[str | Path]) -> int:
                 **document.metadata,
                 "source": str(path),
                 "file_name": path.name,
+                "session_id": session_id,
+                "doc_type": doc_type,
             }
         all_chunks.extend(split_documents(documents))
 
     if not all_chunks:
         raise ValueError("No text could be extracted from the uploaded documents.")
 
-    # Processing is based on the current Streamlit selection. Replacing the
-    # old collection prevents stale files and repeated button clicks from
-    # affecting retrieval for the newly uploaded document set.
-    clear_index()
+    # A session accumulates documents (resume, JD, notes, ...) over multiple
+    # uploads, so the existing index is never wiped before adding new chunks.
     create_vector_store(all_chunks)
     return len(all_chunks)
 
 
-def list_indexed_documents() -> list[str]:
-    """Return distinct file names currently represented in the vector store."""
+def list_indexed_documents(session_id: str) -> list[str]:
+    """Return distinct file names indexed for this prep session."""
     vector_store = load_vector_store()
-    metadata = vector_store.get(include=["metadatas"]).get("metadatas", [])
+    metadata = vector_store.get(
+        where={"session_id": session_id}, include=["metadatas"]
+    ).get("metadatas", [])
 
     return sorted(
         {
@@ -70,7 +76,17 @@ def list_indexed_documents() -> list[str]:
     )
 
 
+def clear_session_index(session_id: str) -> None:
+    """Remove only this prep session's chunks from the vector store."""
+    vector_store = load_vector_store()
+    found = vector_store.get(where={"session_id": session_id})
+    ids = found.get("ids", [])
+    if ids:
+        vector_store.delete(ids=ids)
+
+
 def clear_index() -> None:
-    """Remove the application's persistent Chroma collection."""
+    """Developer/debug utility: wipe the entire persistent Chroma collection
+    across every session. Not called by the UI."""
     vector_store = load_vector_store()
     vector_store.delete_collection()

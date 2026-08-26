@@ -1,15 +1,29 @@
+import re
+
 from models.llm_provider import get_llm
-from prompts.evaluation_prompt import get_evaluation_prompt
+from prompts.evaluation_prompt import get_evaluation_prompt, get_grounded_evaluation_prompt
+from rag.retriever import get_retriever
+from rag.citations import build_sources
 import json
 import time
 
 llm=get_llm()
 
+
+def _strip_json_fence(text: str) -> str:
+    """Strip a leading/trailing ```json ... ``` fence if the model added one."""
+    text = text.strip()
+    match = re.match(r"^```(?:json)?\s*(.*?)\s*```$", text, re.DOTALL)
+    return match.group(1).strip() if match else text
+
+
 def evaluate_answer(question,answer):
     prompt1=get_evaluation_prompt(question,answer)
     response=llm.invoke(prompt1)
-    parsed_response=json.loads(response.content)
-    return parsed_response
+    try:
+        return json.loads(_strip_json_fence(response.content))
+    except json.JSONDecodeError:
+        return {"error": "Could not parse the evaluation. Please try again."}
 
 def stream_evaluation(question, answer):
     prompt=get_evaluation_prompt(
@@ -26,3 +40,40 @@ def stream_evaluation(question, answer):
     for chunk in llm.stream(prompt):
         time.sleep(0.1)
         yield chunk.content
+
+
+def ground_check_ideal_answer(ideal_answer: str, context: str) -> bool:
+    """Does the retrieved context actually support this ideal answer, or did
+    the model fall back to its own memory? Never invents support either way
+    -- an empty context or empty answer is simply not grounded."""
+    if not ideal_answer or not context:
+        return False
+
+    prompt = (
+        "Does the CONTEXT below actually support this ideal answer? "
+        "Answer ONLY yes or no.\n\n"
+        f"Ideal answer: {ideal_answer}\n\n"
+        f"CONTEXT:\n{context}"
+    )
+    response = get_llm().invoke(prompt)
+    return response.content.strip().lower().startswith("yes")
+
+
+def evaluate_grounded_answer(session_id: str, question: str, answer: str) -> dict:
+    """Evaluate a candidate's answer, drawing the ideal_answer from this
+    session's own documents rather than the model's memory."""
+    documents = get_retriever(session_id).invoke(question)
+    context = "\n\n".join(document.page_content for document in documents)
+
+    prompt = get_grounded_evaluation_prompt(question, answer, context)
+    response = get_llm().invoke(prompt)
+
+    try:
+        parsed = json.loads(_strip_json_fence(response.content))
+    except json.JSONDecodeError:
+        return {"error": "Could not parse the evaluation. Please try again."}
+
+    parsed["sources"] = build_sources(documents)
+    parsed["grounded"] = ground_check_ideal_answer(parsed.get("ideal_answer", ""), context)
+
+    return parsed

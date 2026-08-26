@@ -1,7 +1,37 @@
 #helps defining table structure
-from sqlalchemy import Column, String, Integer, Text, ForeignKey
+from datetime import datetime
+from sqlalchemy import Column, String, Integer, Text, ForeignKey, DateTime, JSON
 from database.db import Base
 from  sqlalchemy.orm import relationship
+
+class PrepSession(Base):
+    __tablename__ = "prep_sessions"
+
+    id           = Column(String, primary_key=True)      # uuid4 string
+    company_name = Column(String, nullable=False)
+    role         = Column(String, nullable=False)
+    jd_text      = Column(Text, default="")
+    status       = Column(String, default="active")      # active | archived
+    created_at   = Column(DateTime, default=datetime.utcnow)
+
+    documents  = relationship("Document", back_populates="session",
+                              cascade="all, delete-orphan")
+    interviews = relationship("Interview", back_populates="session")
+
+
+class Document(Base):
+    __tablename__ = "documents"
+
+    id          = Column(Integer, primary_key=True, autoincrement=True)
+    session_id  = Column(String, ForeignKey("prep_sessions.id"))
+    file_name   = Column(String)
+    file_path   = Column(String)
+    doc_type    = Column(String)     # company | jd | resume | notes | experience
+    chunk_count = Column(Integer, default=0)
+    indexed_at  = Column(DateTime, default=datetime.utcnow)
+
+    session = relationship("PrepSession", back_populates="documents")
+
 
 class Interview(Base):
     __tablename__ = "interviews"
@@ -15,6 +45,15 @@ class Interview(Base):
     answer = Column(Text)
 
     score = Column(Integer)
+
+    session_id = Column(String, ForeignKey("prep_sessions.id"), nullable=True)
+    session    = relationship("PrepSession", back_populates="interviews")
+
+    topic        = Column(String, nullable=True)
+    ideal_answer = Column(Text, default="")
+    strengths    = Column(Text, default="")
+    weaknesses   = Column(Text, default="")
+    created_at   = Column(DateTime, default=datetime.utcnow)
 
     followups= relationship(
         "Followup",
@@ -45,4 +84,15 @@ class Followup(Base):
         "Interview",
         back_populates="followups"
     )
-    
+
+
+class ResumeReview(Base):
+    __tablename__ = "resume_reviews"
+
+    id             = Column(Integer, primary_key=True, autoincrement=True)
+    session_id     = Column(String, ForeignKey("prep_sessions.id"))
+    overall_score  = Column(Integer)          # 0-100
+    matched_skills = Column(JSON, default=list)
+    missing_skills = Column(JSON, default=list)
+    suggestions    = Column(Text, default="")
+    created_at     = Column(DateTime, default=datetime.utcnow)

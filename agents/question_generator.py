@@ -1,7 +1,9 @@
 from models.llm_provider import get_llm
-from prompts.question_prompts import get_question_prompt
+from prompts.question_prompts import get_question_prompt, get_grounded_question_prompt
 from database.db import SessionLocal
 from database.models import Interview
+from rag.retriever import get_retriever
+from rag.citations import build_sources
 import time
 
 llm = get_llm()
@@ -42,3 +44,34 @@ def stream_question(jd, session_id):
     db.add(interview)
     db.commit()
     db.close()
+
+
+def generate_grounded_question(
+    session_id: str, topic: str | None = None, difficulty: str = "medium"
+) -> dict:
+    """Generate one interview question grounded in this session's documents."""
+    retriever = get_retriever(session_id)
+    documents = retriever.invoke(topic or "interview question")
+
+    if not documents:
+        return {
+            "question": (
+                "No documents have been indexed in this prep session yet. "
+                "Upload material in the sidebar before generating a question."
+            ),
+            "topic": topic,
+            "sources": [],
+        }
+
+    context = "\n\n".join(document.page_content for document in documents)
+
+    prompt = get_grounded_question_prompt(context, topic, difficulty)
+
+    llm = get_llm()
+    response = llm.invoke(prompt)
+
+    return {
+        "question": response.content,
+        "topic": topic,
+        "sources": build_sources(documents),
+    }
