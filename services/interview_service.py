@@ -1,14 +1,7 @@
-"""Owns the new grounded-round fields on Interview rows.
-
-main.py's existing raw SessionLocal() usage of Interview is pre-existing and
-untouched -- this convention (only this module writes the new fields, every
-function returns plain dicts) applies to new code only, same precedent set
-for database/db.py's get_db() in M0.
-"""
 import uuid
 
 from database.db import get_db
-from database.models import Interview
+from database.models import Interview, Followup
 
 
 def _interview_to_dict(interview: Interview) -> dict:
@@ -68,3 +61,49 @@ def get_interview(interview_id: str) -> dict | None:
     with get_db() as db:
         interview = db.query(Interview).filter(Interview.id == interview_id).first()
         return _interview_to_dict(interview) if interview else None
+
+
+def _followup_to_dict(followup: Followup) -> dict:
+    return {
+        "id": followup.id,
+        "interview_id": followup.interview_id,
+        "followup_number": followup.followup_number,
+        "topic": followup.topic,
+        "question": followup.question,
+        "answer": followup.answer,
+        "score": followup.score,
+        "created_at": followup.created_at,
+    }
+
+
+def record_followup(
+    interview_id: str,
+    followup_number: int,
+    topic: str | None,
+    question: str,
+    answer: str,
+    score: int,
+) -> dict:
+    with get_db() as db:
+        followup = Followup(
+            interview_id=interview_id,
+            followup_number=followup_number,
+            topic=topic,
+            question=question,
+            answer=answer,
+            score=score,
+        )
+        db.add(followup)
+        db.flush()
+        return _followup_to_dict(followup)
+
+
+def list_followups(interview_id: str) -> list[dict]:
+    with get_db() as db:
+        followups = (
+            db.query(Followup)
+            .filter(Followup.interview_id == interview_id)
+            .order_by(Followup.followup_number.asc())
+            .all()
+        )
+        return [_followup_to_dict(followup) for followup in followups]

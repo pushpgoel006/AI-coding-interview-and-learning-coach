@@ -1,18 +1,3 @@
-"""LangGraph workflow for the resume checker.
-
-This module only orchestrates. Every node delegates to a function in the
-``rag``, ``agents``, or ``services`` packages.
-
-State flow (the shared "backpack"):
-    {session_id}
-      -> retrieve            adds resume_documents, jd_documents
-      -> route                missing -> missing_documents, else -> analyze
-      -> analyze              adds analysis, resume_context
-      -> route                error -> analysis_failed, else -> ground_check
-      -> ground_check         adds verdicts (possibly downgraded)
-      -> store                adds review
-"""
-
 from typing import TypedDict
 
 from langchain_core.documents import Document
@@ -31,15 +16,10 @@ class ResumeGraphState(TypedDict):
     jd_documents: list[Document]
     resume_context: str
     analysis: dict
-    review: dict   # the persisted, UI-ready result
+    review: dict
 
-
-# --------------------------------------------------------------------------
-# Nodes
-# --------------------------------------------------------------------------
 
 def retrieve_node(state: ResumeGraphState):
-    """Fetch every resume chunk and every JD chunk for this session."""
     print(">>> RESUME RETRIEVE NODE")
 
     resume_documents = get_documents_by_doc_type(state["session_id"], "resume")
@@ -54,7 +34,6 @@ def retrieve_node(state: ResumeGraphState):
 
 
 def missing_documents_node(state: ResumeGraphState):
-    """Fallback used when the resume, the JD, or both are not indexed yet."""
     print(">>> MISSING DOCUMENTS NODE")
 
     if not state["resume_documents"] and not state["jd_documents"]:
@@ -73,7 +52,6 @@ def missing_documents_node(state: ResumeGraphState):
 
 
 def analyze_node(state: ResumeGraphState):
-    """Compare the resume against the JD."""
     print(">>> ANALYZE NODE")
 
     resume_context = format_context(state["resume_documents"])
@@ -90,7 +68,6 @@ def analyze_node(state: ResumeGraphState):
 
 
 def analysis_failed_node(state: ResumeGraphState):
-    """Fallback used when the LLM's response could not be parsed."""
     print(">>> ANALYSIS FAILED NODE")
 
     state["review"] = {"error": state["analysis"]["error"]}
@@ -99,7 +76,6 @@ def analysis_failed_node(state: ResumeGraphState):
 
 
 def ground_check_node(state: ResumeGraphState):
-    """Re-verify every "clearly demonstrated" verdict against the resume."""
     print(">>> GROUND CHECK NODE")
 
     verdicts = ground_check_verdicts(
@@ -115,12 +91,8 @@ def ground_check_node(state: ResumeGraphState):
 
 
 def store_node(state: ResumeGraphState):
-    """Persist the review and hand the UI a single ready-to-render dict."""
     print(">>> STORE NODE")
 
-    # The model does not always return every field on every verdict object
-    # even when the outer JSON parses cleanly -- drop anything unusable
-    # rather than crash or display a blank requirement.
     verdicts = [
         verdict
         for verdict in state["analysis"]["verdicts"]
@@ -164,10 +136,6 @@ def route_after_analyze(state: ResumeGraphState):
 
     return "ground_check"
 
-
-# --------------------------------------------------------------------------
-# Graph wiring
-# --------------------------------------------------------------------------
 
 graph = StateGraph(ResumeGraphState)
 

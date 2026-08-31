@@ -6,3 +6,7 @@ interviews.db
 
 uploads/
 .env
+.neon
+.agents/
+.claude/
+skills-lock.json

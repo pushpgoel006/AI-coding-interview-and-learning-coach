@@ -4,10 +4,6 @@ from services.session_service import create_session, get_session, list_sessions
 
 
 def render_session_selector() -> dict | None:
-    """Render the prep-session picker at the top of the sidebar.
-
-    Returns the active session as a dict, or None if no session exists yet.
-    """
     with st.sidebar:
         st.header("🗂️ Prep Session")
 

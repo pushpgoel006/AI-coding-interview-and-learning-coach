@@ -49,7 +49,6 @@ def stream_question(jd, session_id):
 def generate_grounded_question(
     session_id: str, topic: str | None = None, difficulty: str = "medium"
 ) -> dict:
-    """Generate one interview question grounded in this session's documents."""
     retriever = get_retriever(session_id)
     documents = retriever.invoke(topic or "interview question")
 

@@ -1,9 +1,3 @@
-"""Streamlit application composition layer.
-
-This module intentionally contains no RAG business logic. It saves uploaded
-files, then delegates indexing and question answering to backend entry points.
-"""
-
 from pathlib import Path
 
 import streamlit as st
@@ -12,6 +6,7 @@ from rag.config import UPLOADS_DIR
 from rag.indexer import clear_session_index, index_documents
 from services.session_service import delete_session_documents, record_document
 from ui.chat import render_chat
+from ui.dashboard_page import render_dashboard_page
 from ui.interview_page import render_interview_page
 from ui.resume_page import render_resume_page
 from ui.session_selector import render_session_selector
@@ -19,12 +14,10 @@ from ui.sidebar import render_sidebar
 
 
 def _save_uploaded_files(uploaded_files) -> list[Path]:
-    """Save Streamlit upload objects to the project's uploads directory."""
     UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
     saved_paths = []
 
     for uploaded_file in uploaded_files:
-        # Strip any client-provided path components before writing locally.
         destination = UPLOADS_DIR / Path(uploaded_file.name).name
         destination.write_bytes(uploaded_file.getbuffer())
         saved_paths.append(destination)
@@ -94,8 +87,8 @@ def main() -> None:
             st.sidebar.success("This session's documents were cleared.")
             st.rerun()
 
-    chat_tab, resume_tab, interview_tab = st.tabs(
-        ["💬 Chat", "🧾 Resume Check", "🎤 Theory Round"]
+    chat_tab, resume_tab, interview_tab, dashboard_tab = st.tabs(
+        ["💬 Chat", "🧾 Resume Check", "🎤 Theory Round", "📊 Dashboard"]
     )
 
     with chat_tab:
@@ -106,3 +99,6 @@ def main() -> None:
 
     with interview_tab:
         render_interview_page(session_id)
+
+    with dashboard_tab:
+        render_dashboard_page(session_id)

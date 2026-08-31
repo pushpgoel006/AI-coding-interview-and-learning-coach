@@ -6,8 +6,7 @@ from rag.embeddings import get_embedding_model
 
 
 class SourceAwareRetriever:
-    """Retrieve top chunks from each indexed source for multi-document queries,
-    scoped to a single prep session."""
+    """Retrieve top chunks from each indexed source for multi-document queries."""
 
     def __init__(self, vector_store: Chroma, session_id: str, k: int = 4):
         self.vector_store = vector_store
@@ -68,17 +67,12 @@ def load_vector_store():
 
 
 def get_retriever(session_id: str, k: int = 4):
-    """Return a source-aware retriever scoped to a single prep session."""
+    """Return a source-aware retriever for the RAG graph."""
     vector_store = load_vector_store()
     return SourceAwareRetriever(vector_store, session_id, k=k)
 
 
 def get_documents_by_doc_type(session_id: str, doc_type: str) -> list[Document]:
-    """Fetch every chunk of one doc_type in a session, in reading order.
-
-    Not a similarity search -- there is no query. Used for whole-document
-    reassembly (e.g. "the whole resume"), not question answering.
-    """
     vector_store = load_vector_store()
 
     result = vector_store.get(

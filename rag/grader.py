@@ -31,7 +31,6 @@ def grade_documents(
 
 
 def grade_document(question: str, document: Document) -> bool:
-    """Grade a single chunk's relevance to the question."""
     prompt = GRADER_PROMPT.format(
         question=question,
         context=document.page_content,
@@ -48,7 +47,6 @@ def filter_relevant_documents(
     question: str,
     documents: list[Document],
 ) -> tuple[list[Document], str]:
-    """Grade each chunk independently and keep only the relevant ones."""
     if not documents:
         return [], "0/0 relevant"
 

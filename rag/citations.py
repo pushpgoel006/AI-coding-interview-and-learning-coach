@@ -1,15 +1,9 @@
-"""Turn retrieved chunks into plain, UI-ready source citations."""
-
 from pathlib import Path
 
 from langchain_core.documents import Document
 
 
 def build_sources(documents: list[Document]) -> list[dict]:
-    """Deduplicate retrieved chunks into one citation per (file, page).
-
-    The UI receives plain dicts and needs no knowledge of LangChain.
-    """
     seen = set()
     sources = []
 

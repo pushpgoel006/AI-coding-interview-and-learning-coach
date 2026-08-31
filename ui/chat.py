@@ -15,7 +15,6 @@ def _render_sources(sources: list[dict]) -> None:
 
 
 def render_chat(session_id: str):
-    """Render the chat experience and delegate questions to the RAG graph."""
     if "messages" not in st.session_state:
         st.session_state.messages = {}
 

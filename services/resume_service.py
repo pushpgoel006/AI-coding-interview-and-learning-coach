@@ -1,9 +1,3 @@
-"""Owns ResumeReview rows. The only module allowed to touch them.
-
-Every function returns plain dicts, never ORM objects -- same rule as
-session_service.py and for the same reason (DetachedInstanceError once the
-db session closes).
-"""
 from database.db import get_db
 from database.models import ResumeReview
 

@@ -1,9 +1,3 @@
-"""Owns PrepSession and Document rows. The only module allowed to touch them.
-
-Every function returns plain dicts, never ORM objects — the db session
-closes before the caller sees the result, so a returned ORM object would
-raise DetachedInstanceError on attribute access.
-"""
 import uuid
 from datetime import datetime
 

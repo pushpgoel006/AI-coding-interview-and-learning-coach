@@ -7,11 +7,11 @@ from  sqlalchemy.orm import relationship
 class PrepSession(Base):
     __tablename__ = "prep_sessions"
 
-    id           = Column(String, primary_key=True)      # uuid4 string
+    id           = Column(String, primary_key=True)
     company_name = Column(String, nullable=False)
     role         = Column(String, nullable=False)
     jd_text      = Column(Text, default="")
-    status       = Column(String, default="active")      # active | archived
+    status       = Column(String, default="active")
     created_at   = Column(DateTime, default=datetime.utcnow)
 
     documents  = relationship("Document", back_populates="session",
@@ -26,7 +26,7 @@ class Document(Base):
     session_id  = Column(String, ForeignKey("prep_sessions.id"))
     file_name   = Column(String)
     file_path   = Column(String)
-    doc_type    = Column(String)     # company | jd | resume | notes | experience
+    doc_type    = Column(String)
     chunk_count = Column(Integer, default=0)
     indexed_at  = Column(DateTime, default=datetime.utcnow)
 
@@ -80,6 +80,8 @@ class Followup(Base):
     answer=Column(Text)
     score=Column(Integer)
     followup_number= Column(Integer)
+    topic      = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
     interview = relationship(
         "Interview",
         back_populates="followups"
@@ -91,7 +93,7 @@ class ResumeReview(Base):
 
     id             = Column(Integer, primary_key=True, autoincrement=True)
     session_id     = Column(String, ForeignKey("prep_sessions.id"))
-    overall_score  = Column(Integer)          # 0-100
+    overall_score  = Column(Integer)
     matched_skills = Column(JSON, default=list)
     missing_skills = Column(JSON, default=list)
     suggestions    = Column(Text, default="")

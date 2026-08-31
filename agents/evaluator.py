@@ -11,7 +11,6 @@ llm=get_llm()
 
 
 def _strip_json_fence(text: str) -> str:
-    """Strip a leading/trailing ```json ... ``` fence if the model added one."""
     text = text.strip()
     match = re.match(r"^```(?:json)?\s*(.*?)\s*```$", text, re.DOTALL)
     return match.group(1).strip() if match else text
@@ -43,9 +42,6 @@ def stream_evaluation(question, answer):
 
 
 def ground_check_ideal_answer(ideal_answer: str, context: str) -> bool:
-    """Does the retrieved context actually support this ideal answer, or did
-    the model fall back to its own memory? Never invents support either way
-    -- an empty context or empty answer is simply not grounded."""
     if not ideal_answer or not context:
         return False
 
@@ -60,8 +56,6 @@ def ground_check_ideal_answer(ideal_answer: str, context: str) -> bool:
 
 
 def evaluate_grounded_answer(session_id: str, question: str, answer: str) -> dict:
-    """Evaluate a candidate's answer, drawing the ideal_answer from this
-    session's own documents rather than the model's memory."""
     documents = get_retriever(session_id).invoke(question)
     context = "\n\n".join(document.page_content for document in documents)
 

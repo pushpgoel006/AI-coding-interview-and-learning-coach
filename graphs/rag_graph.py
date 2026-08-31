@@ -1,18 +1,3 @@
-"""LangGraph workflow for the RAG pipeline.
-
-This module only orchestrates. Every node delegates to a function in the
-``rag`` package, so the retrieval, grading, and generation logic stays in one
-place and this file stays readable.
-
-State flow (the shared "backpack"):
-    {question, session_id}
-      -> retrieve      adds documents
-      -> route         empty -> no_documents, else -> grader
-      -> grader        adds relevant_documents, grade
-      -> route         empty -> not_found, else -> generate
-      -> generate / not_found / no_documents  adds answer, sources
-"""
-
 from typing import TypedDict
 
 from langchain_core.documents import Document
@@ -27,19 +12,14 @@ from rag.citations import build_sources
 class GraphState(TypedDict):
     question: str
     session_id: str
-    documents: list[Document]           # everything retrieved
-    relevant_documents: list[Document]  # what survived grading
-    grade: str                          # summary string, for the debug trace
-    sources: list[dict]                 # built from relevant_documents
+    documents: list[Document]
+    relevant_documents: list[Document]
+    grade: str
+    sources: list[dict]
     answer: str
 
 
-# --------------------------------------------------------------------------
-# Nodes
-# --------------------------------------------------------------------------
-
 def retriever_node(state: GraphState):
-    """Fetch the chunks that are semantically closest to the question."""
     print(">>> RETRIEVER NODE")
 
     retriever = get_retriever(state["session_id"])
@@ -56,7 +36,6 @@ def retriever_node(state: GraphState):
 
 
 def grader_node(state: GraphState):
-    """Grade each retrieved chunk individually and keep the relevant ones."""
     print(">>> GRADER NODE")
 
     relevant_documents, grade = filter_relevant_documents(
@@ -73,7 +52,6 @@ def grader_node(state: GraphState):
 
 
 def generate_node(state: GraphState):
-    """Produce the final answer from the chunks that survived grading."""
     print(">>> GENERATE NODE")
 
     answer = generate_answer(
@@ -90,7 +68,6 @@ def generate_node(state: GraphState):
 
 
 def not_found_node(state: GraphState):
-    """Fallback used when no retrieved chunk was judged relevant."""
     print(">>> NOT FOUND NODE")
 
     state["answer"] = (
@@ -102,7 +79,6 @@ def not_found_node(state: GraphState):
 
 
 def no_documents_node(state: GraphState):
-    """Fallback used when the session has nothing indexed at all."""
     print(">>> NO DOCUMENTS NODE")
 
     state["answer"] = (
@@ -115,7 +91,6 @@ def no_documents_node(state: GraphState):
 
 
 def route_after_retriever(state: GraphState):
-    """Skip grading and generation entirely when nothing was retrieved."""
     if not state["documents"]:
         return "no_documents"
 
@@ -123,20 +98,14 @@ def route_after_retriever(state: GraphState):
 
 
 def route_after_grader(state: GraphState):
-    """Send relevant context to the generator, everything else to not_found."""
     if state["relevant_documents"]:
         return "generate"
 
     return "not_found"
 
 
-# --------------------------------------------------------------------------
-# Graph wiring
-# --------------------------------------------------------------------------
-
 graph = StateGraph(GraphState)
 
-# Register nodes
 graph.add_node(
     "retrieve",
     retriever_node,
@@ -162,7 +131,6 @@ graph.add_node(
     no_documents_node,
 )
 
-# Connect nodes
 graph.add_edge(
     START,
     "retrieve",

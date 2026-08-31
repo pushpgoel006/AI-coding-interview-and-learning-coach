@@ -54,8 +54,6 @@ def index_documents(
     if not all_chunks:
         raise ValueError("No text could be extracted from the uploaded documents.")
 
-    # A session accumulates documents (resume, JD, notes, ...) over multiple
-    # uploads, so the existing index is never wiped before adding new chunks.
     create_vector_store(all_chunks)
     return len(all_chunks)
 
@@ -77,7 +75,6 @@ def list_indexed_documents(session_id: str) -> list[str]:
 
 
 def clear_session_index(session_id: str) -> None:
-    """Remove only this prep session's chunks from the vector store."""
     vector_store = load_vector_store()
     found = vector_store.get(where={"session_id": session_id})
     ids = found.get("ids", [])
@@ -86,7 +83,6 @@ def clear_session_index(session_id: str) -> None:
 
 
 def clear_index() -> None:
-    """Developer/debug utility: wipe the entire persistent Chroma collection
-    across every session. Not called by the UI."""
+    """Remove the application's persistent Chroma collection."""
     vector_store = load_vector_store()
     vector_store.delete_collection()

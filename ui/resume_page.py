@@ -67,7 +67,6 @@ def _render_review(review: dict) -> None:
 
 
 def render_resume_page(session_id: str) -> None:
-    """Render the resume-vs-JD fit check for this prep session."""
     st.subheader("🧾 Resume Check")
 
     existing_review = get_latest_review(session_id)
