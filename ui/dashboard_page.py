@@ -10,15 +10,16 @@ from services.analytics import (
     get_readiness_score,
 )
 from agents.recommender import generate_recommendation
+from ui.sidebar import DOC_TYPE_LABELS
 
 
-def _score_badge(score: float, max_score: float) -> str:
+def _score_color(score: float, max_score: float) -> str:
     ratio = score / max_score if max_score else 0
     if ratio >= 0.7:
-        return "🟢"
+        return "green"
     if ratio >= 0.4:
-        return "🟡"
-    return "🔴"
+        return "orange"
+    return "red"
 
 
 def _clear_practice_state(session_id: str) -> None:
@@ -31,7 +32,7 @@ def _clear_practice_state(session_id: str) -> None:
 
 
 def render_dashboard_page(session_id: str) -> None:
-    st.subheader("📊 Dashboard")
+    st.subheader("Dashboard")
 
     readiness = get_readiness_score(session_id)
     theory_average = get_theory_average(session_id)
@@ -44,22 +45,22 @@ def render_dashboard_page(session_id: str) -> None:
         col1, col2, col3, col4 = st.columns(4)
 
         with col1:
-            st.metric("🎯 Readiness", f"{readiness}/100" if readiness is not None else "—")
+            st.metric("Readiness", f"{readiness}/100" if readiness is not None else "—")
             st.caption("60% theory · 40% resume fit")
 
         with col2:
             st.metric(
-                "🎤 Theory Avg",
+                "Theory Average",
                 f"{theory_average:.1f}/10" if theory_average is not None else "—",
             )
             st.caption(f"{len(trend)} scored answer{'s' if len(trend) != 1 else ''}")
 
         with col3:
-            st.metric("🧾 Resume Fit", f"{resume_fit}/100" if resume_fit is not None else "—")
+            st.metric("Resume Fit", f"{resume_fit}/100" if resume_fit is not None else "—")
             st.caption("Latest check" if resume_fit is not None else "Not checked yet")
 
         with col4:
-            st.metric("💻 DSA", "—")
+            st.metric("DSA", "—")
             st.caption("Not built yet")
 
     if readiness is None and not trend and resume_fit is None:
@@ -74,7 +75,7 @@ def render_dashboard_page(session_id: str) -> None:
     col_trend, col_topics = st.columns(2)
 
     with col_trend:
-        st.markdown("**📈 Score Trend**")
+        st.markdown("**Score Trend**")
         if trend:
             trend_df = pd.DataFrame(trend).sort_values("date")
             trend_df["Attempt"] = range(1, len(trend_df) + 1)
@@ -84,18 +85,20 @@ def render_dashboard_page(session_id: str) -> None:
             st.caption("No scored answers yet -- run a theory round to see a trend.")
 
     with col_topics:
-        st.markdown("**📊 Score by Topic**")
+        st.markdown("**Score by Topic**")
         if by_topic:
             for entry in sorted(by_topic, key=lambda item: item["average_score"]):
-                badge = _score_badge(entry["average_score"], 10)
-                st.write(f"{badge} **{entry['topic']}** -- {entry['average_score']:.1f}/10")
+                color = _score_color(entry["average_score"], 10)
+                st.markdown(
+                    f":{color}[**{entry['topic']}**] — {entry['average_score']:.1f}/10"
+                )
                 st.progress(min(entry["average_score"] / 10, 1.0))
         else:
             st.caption("No topics scored yet -- try the theory round with a topic set.")
 
     st.divider()
 
-    st.markdown("**🎯 Weakest Topics -- Practice These**")
+    st.markdown("**Weakest Topics — Practice These**")
 
     if not weakest:
         st.caption("Not enough topic data yet to identify weak spots.")
@@ -105,14 +108,15 @@ def render_dashboard_page(session_id: str) -> None:
             score = entry["average_score"]
 
             with st.container(border=True):
-                st.write(f"{_score_badge(score, 10)} **{topic}** -- average {score:.1f}/10")
+                color = _score_color(score, 10)
+                st.markdown(f":{color}[**{topic}**] — average {score:.1f}/10")
                 st.progress(min(score / 10, 1.0))
 
                 col_practice, col_advice = st.columns(2)
 
                 with col_practice:
                     if st.button(
-                        "🎯 Practice this",
+                        "Practice this",
                         key=f"practice_{session_id}_{topic}",
                         use_container_width=True,
                     ):
@@ -126,7 +130,7 @@ def render_dashboard_page(session_id: str) -> None:
                 with col_advice:
                     advice_key = f"dashboard_advice_{session_id}_{topic}"
                     if st.button(
-                        "💡 Get recommendation",
+                        "Get recommendation",
                         key=f"recommend_{session_id}_{topic}",
                         use_container_width=True,
                     ):
@@ -143,18 +147,21 @@ def render_dashboard_page(session_id: str) -> None:
                     st.info(advice["advice"])
                     if advice.get("sources"):
                         with st.expander(
-                            f"📎 Sources ({len(advice['sources'])})", expanded=False
+                            f"Sources ({len(advice['sources'])})", expanded=False
                         ):
                             for source in advice["sources"]:
+                                label = DOC_TYPE_LABELS.get(
+                                    source["doc_type"], source["doc_type"]
+                                )
                                 st.caption(
                                     f"{source['file_name']} · page {source['page']} · "
-                                    f"{source['doc_type']}"
+                                    f"{label}"
                                 )
 
     st.divider()
 
     with st.container(border=True):
-        st.markdown("**💻 DSA Solve Rate**")
+        st.markdown("**DSA Solve Rate**")
         st.caption(
             "Not available yet -- the DSA round is a separate module that "
             "hasn't been built for this project yet."

@@ -8,7 +8,8 @@ def get_llm():
     if provider =="groq":
         return ChatGroq(
             model="openai/gpt-oss-120b",
-            api_key=os.getenv("GROQ_API_KEY")
+            api_key=os.getenv("GROQ_API_KEY"),
+            reasoning_format="hidden",
         )
     else:
         raise ValueError("Unsupported")

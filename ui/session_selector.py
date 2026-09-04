@@ -3,11 +3,11 @@ import streamlit as st
 from services.session_service import create_session, get_session, list_sessions
 
 
-def render_session_selector() -> dict | None:
+def render_session_selector(owner_id: str) -> dict | None:
     with st.sidebar:
-        st.header("🗂️ Prep Session")
+        st.header("Prep Session")
 
-        sessions = list_sessions()
+        sessions = list_sessions(owner_id)
 
         if sessions:
             labels = [f"{s['company_name']} — {s['role']}" for s in sessions]
@@ -24,23 +24,27 @@ def render_session_selector() -> dict | None:
             )
             st.session_state.active_session_id = ids[selected_index]
 
-        with st.expander("➕ New prep session"):
+        with st.expander("New prep session"):
             company_name = st.text_input("Company name", key="new_session_company")
             role = st.text_input("Role", key="new_session_role")
             jd_text = st.text_area(
                 "Job description (optional)", key="new_session_jd"
             )
-            create_clicked = st.button("Create", key="create_session_button")
+            create_clicked = st.button(
+                "Create", key="create_session_button", use_container_width=True
+            )
 
             if create_clicked:
                 if not company_name.strip() or not role.strip():
                     st.warning("Company name and role are required.")
                 else:
-                    new_session = create_session(company_name.strip(), role.strip(), jd_text)
+                    new_session = create_session(
+                        owner_id, company_name.strip(), role.strip(), jd_text
+                    )
                     st.session_state.active_session_id = new_session["id"]
                     st.rerun()
 
         st.divider()
 
     active_id = st.session_state.get("active_session_id")
-    return get_session(active_id) if active_id else None
+    return get_session(active_id, owner_id) if active_id else None

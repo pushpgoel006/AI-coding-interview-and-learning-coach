@@ -12,17 +12,29 @@ llm=get_llm()
 
 def _strip_json_fence(text: str) -> str:
     text = text.strip()
-    match = re.match(r"^```(?:json)?\s*(.*?)\s*```$", text, re.DOTALL)
-    return match.group(1).strip() if match else text
+
+    fence_match = re.search(r"```(?:json)?\s*(.*?)\s*```", text, re.DOTALL)
+    if fence_match:
+        return fence_match.group(1).strip()
+
+    brace_match = re.search(r"\{.*\}", text, re.DOTALL)
+    if brace_match:
+        return brace_match.group(0)
+
+    return text
 
 
 def evaluate_answer(question,answer):
     prompt1=get_evaluation_prompt(question,answer)
-    response=llm.invoke(prompt1)
-    try:
-        return json.loads(_strip_json_fence(response.content))
-    except json.JSONDecodeError:
-        return {"error": "Could not parse the evaluation. Please try again."}
+
+    for attempt in range(3):
+        response = llm.invoke(prompt1)
+        try:
+            return json.loads(_strip_json_fence(response.content))
+        except json.JSONDecodeError:
+            continue
+
+    return {"error": "Could not parse the evaluation. Please try again."}
 
 def stream_evaluation(question, answer):
     prompt=get_evaluation_prompt(
@@ -60,11 +72,18 @@ def evaluate_grounded_answer(session_id: str, question: str, answer: str) -> dic
     context = "\n\n".join(document.page_content for document in documents)
 
     prompt = get_grounded_evaluation_prompt(question, answer, context)
-    response = get_llm().invoke(prompt)
+    llm = get_llm()
 
-    try:
-        parsed = json.loads(_strip_json_fence(response.content))
-    except json.JSONDecodeError:
+    parsed = None
+    for attempt in range(3):
+        response = llm.invoke(prompt)
+        try:
+            parsed = json.loads(_strip_json_fence(response.content))
+            break
+        except json.JSONDecodeError:
+            continue
+
+    if parsed is None:
         return {"error": "Could not parse the evaluation. Please try again."}
 
     parsed["sources"] = build_sources(documents)

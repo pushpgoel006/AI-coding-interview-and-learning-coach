@@ -7,6 +7,8 @@ from rag.retriever import get_retriever
 from rag.generator import generate_answer
 from rag.grader import filter_relevant_documents
 from rag.citations import build_sources
+from rag.query_rewriter import rewrite_query
+from rag.query_decomposer import decompose_question
 
 
 class GraphState(TypedDict):
@@ -17,10 +19,14 @@ class GraphState(TypedDict):
     grade: str
     sources: list[dict]
     answer: str
+    retry_count: int
+    sub_questions: list[str]
 
 
 def retriever_node(state: GraphState):
     print(">>> RETRIEVER NODE")
+
+    state["retry_count"] = state.get("retry_count", 0)
 
     retriever = get_retriever(state["session_id"])
 
@@ -90,6 +96,55 @@ def no_documents_node(state: GraphState):
     return state
 
 
+def rewrite_and_retry_node(state: GraphState):
+    print(">>> REWRITE NODE (retry", state.get("retry_count", 0) + 1, ")")
+
+    new_question = rewrite_query(state["question"])
+
+    print("Rewritten query:", new_question)
+
+    state["question"] = new_question
+    state["retry_count"] = state.get("retry_count", 0) + 1
+
+    return state
+
+
+def decompose_node(state: GraphState):
+    print(">>> DECOMPOSE NODE")
+
+    sub_questions = decompose_question(state["question"])
+
+    print("Sub-questions:", len(sub_questions))
+
+    state["sub_questions"] = sub_questions
+
+    return state
+
+
+def multi_retrieve_node(state: GraphState):
+    print(">>> MULTI-RETRIEVE NODE")
+
+    all_relevant = []
+    for sub_q in state["sub_questions"]:
+        retriever = get_retriever(state["session_id"])
+        docs = retriever.invoke(sub_q)
+        relevant, _ = filter_relevant_documents(sub_q, docs)
+        all_relevant.extend(relevant)
+
+    seen = set()
+    deduped = []
+    for doc in all_relevant:
+        key = (doc.metadata.get("file_name"), doc.metadata.get("page"))
+        if key not in seen:
+            seen.add(key)
+            deduped.append(doc)
+
+    state["relevant_documents"] = deduped
+    state["documents"] = deduped
+
+    return state
+
+
 def route_after_retriever(state: GraphState):
     if not state["documents"]:
         return "no_documents"
@@ -101,7 +156,16 @@ def route_after_grader(state: GraphState):
     if state["relevant_documents"]:
         return "generate"
 
+    if state.get("retry_count", 0) < 2:
+        return "retry"
+
     return "not_found"
+
+
+def route_after_decompose(state: GraphState):
+    if len(state["sub_questions"]) > 1:
+        return "multi_retrieve"
+    return "retrieve"
 
 
 graph = StateGraph(GraphState)
@@ -131,9 +195,33 @@ graph.add_node(
     no_documents_node,
 )
 
+graph.add_node(
+    "retry",
+    rewrite_and_retry_node,
+)
+
+graph.add_node(
+    "decompose",
+    decompose_node,
+)
+
+graph.add_node(
+    "multi_retrieve",
+    multi_retrieve_node,
+)
+
 graph.add_edge(
     START,
-    "retrieve",
+    "decompose",
+)
+
+graph.add_conditional_edges(
+    "decompose",
+    route_after_decompose,
+    {
+        "retrieve": "retrieve",
+        "multi_retrieve": "multi_retrieve",
+    },
 )
 
 graph.add_conditional_edges(
@@ -150,8 +238,24 @@ graph.add_conditional_edges(
     route_after_grader,
     {
         "generate": "generate",
+        "retry": "retry",
         "not_found": "not_found",
     },
+)
+
+graph.add_conditional_edges(
+    "multi_retrieve",
+    route_after_grader,
+    {
+        "generate": "generate",
+        "retry": "retry",
+        "not_found": "not_found",
+    },
+)
+
+graph.add_edge(
+    "retry",
+    "retrieve",
 )
 
 graph.add_edge(

@@ -12,21 +12,21 @@ def _render_verdict_columns(verdicts: list[dict]) -> None:
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        st.markdown(f"**✅ Clearly demonstrated ({len(demonstrated)})**")
+        st.markdown(f":green[**Clearly demonstrated ({len(demonstrated)})**]")
         for verdict in demonstrated:
             st.markdown(f"- {verdict['requirement']}")
             if verdict.get("evidence"):
-                st.caption(f"📎 {verdict['evidence']}")
+                st.caption(verdict["evidence"])
 
     with col2:
-        st.markdown(f"**🟡 Partially demonstrated ({len(partial)})**")
+        st.markdown(f":orange[**Partially demonstrated ({len(partial)})**]")
         for verdict in partial:
             st.markdown(f"- {verdict['requirement']}")
             if verdict.get("evidence"):
-                st.caption(f"📎 {verdict['evidence']}")
+                st.caption(verdict["evidence"])
 
     with col3:
-        st.markdown(f"**❌ Not demonstrated ({len(missing)})**")
+        st.markdown(f":red[**Not demonstrated ({len(missing)})**]")
         for verdict in missing:
             st.markdown(f"- {verdict['requirement']}")
 
@@ -39,12 +39,12 @@ def _render_matched_missing(matched_skills: list[str], missing_skills: list[str]
     col1, col2 = st.columns(2)
 
     with col1:
-        st.markdown(f"**✅ Matched ({len(matched_skills)})**")
+        st.markdown(f":green[**Matched ({len(matched_skills)})**]")
         for skill in matched_skills:
             st.markdown(f"- {skill}")
 
     with col2:
-        st.markdown(f"**❌ Missing ({len(missing_skills)})**")
+        st.markdown(f":red[**Missing ({len(missing_skills)})**]")
         for skill in missing_skills:
             st.markdown(f"- {skill}")
 
@@ -67,7 +67,7 @@ def _render_review(review: dict) -> None:
 
 
 def render_resume_page(session_id: str) -> None:
-    st.subheader("🧾 Resume Check")
+    st.subheader("Resume Check")
 
     existing_review = get_latest_review(session_id)
     if existing_review:
@@ -75,7 +75,7 @@ def render_resume_page(session_id: str) -> None:
         _render_review(existing_review)
         st.divider()
 
-    if st.button("🧾 Run Resume Check", use_container_width=True):
+    if st.button("Run Resume Check", use_container_width=True):
         try:
             with st.spinner("Analyzing resume against the job description..."):
                 result = resume_graph.invoke({"session_id": session_id})

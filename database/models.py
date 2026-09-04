@@ -4,6 +4,18 @@ from sqlalchemy import Column, String, Integer, Text, ForeignKey, DateTime, JSON
 from database.db import Base
 from  sqlalchemy.orm import relationship
 
+class User(Base):
+    __tablename__ = "users"
+
+    id            = Column(String, primary_key=True)
+    email         = Column(String, unique=True, nullable=False, index=True)
+    password_hash = Column(String, nullable=False)
+    display_name  = Column(String, nullable=False)
+    created_at    = Column(DateTime, default=datetime.utcnow)
+
+    sessions = relationship("PrepSession", back_populates="owner")
+
+
 class PrepSession(Base):
     __tablename__ = "prep_sessions"
 
@@ -13,6 +25,9 @@ class PrepSession(Base):
     jd_text      = Column(Text, default="")
     status       = Column(String, default="active")
     created_at   = Column(DateTime, default=datetime.utcnow)
+
+    owner_id = Column(String, ForeignKey("users.id"), nullable=False)
+    owner    = relationship("User", back_populates="sessions")
 
     documents  = relationship("Document", back_populates="session",
                               cascade="all, delete-orphan")

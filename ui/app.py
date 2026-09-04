@@ -1,10 +1,13 @@
+import time
 from pathlib import Path
 
 import streamlit as st
 
 from rag.config import UPLOADS_DIR
 from rag.indexer import clear_session_index, index_documents
+from services.auth_service import get_user
 from services.session_service import delete_session_documents, record_document
+from ui.auth_page import get_cookie_manager, render_auth_page
 from ui.chat import render_chat
 from ui.dashboard_page import render_dashboard_page
 from ui.interview_page import render_interview_page
@@ -28,15 +31,41 @@ def _save_uploaded_files(uploaded_files) -> list[Path]:
 def main() -> None:
     st.set_page_config(
         page_title="AI Interview Intelligence Platform",
-        page_icon="🤖",
         layout="wide",
         initial_sidebar_state="expanded",
     )
 
+    cookie_manager = get_cookie_manager()
+    cookies = cookie_manager.get_all()
+
+    if cookies is None:
+        st.stop()
+
+    if "current_user" not in st.session_state:
+        cookie_user_id = cookies.get("user_id")
+        if cookie_user_id:
+            user = get_user(cookie_user_id)
+            if user:
+                st.session_state.current_user = user
+
+    if "current_user" not in st.session_state:
+        render_auth_page()
+        return
+
+    current_user = st.session_state.current_user
+
     st.title("AI Interview Intelligence Platform")
     st.caption("Upload interview material, then ask questions grounded in it.")
 
-    active_session = render_session_selector()
+    with st.sidebar:
+        st.write(f"Signed in as **{current_user['display_name']}**")
+        if st.button("Log out"):
+            cookie_manager.delete("user_id", key="delete_login_cookie")
+            del st.session_state["current_user"]
+            time.sleep(0.5)
+            st.rerun()
+
+    active_session = render_session_selector(current_user["id"])
 
     if not active_session:
         st.info("Create a prep session to get started.")
@@ -88,7 +117,7 @@ def main() -> None:
             st.rerun()
 
     chat_tab, resume_tab, interview_tab, dashboard_tab = st.tabs(
-        ["💬 Chat", "🧾 Resume Check", "🎤 Theory Round", "📊 Dashboard"]
+        ["Chat", "Resume Check", "Theory Round", "Dashboard"]
     )
 
     with chat_tab:

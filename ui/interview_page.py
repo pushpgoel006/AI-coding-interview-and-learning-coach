@@ -2,17 +2,17 @@ import streamlit as st
 
 from agents.question_generator import generate_grounded_question
 from graphs.interview_graph import interview_graph
+from ui.sidebar import DOC_TYPE_LABELS
 
 
 def _render_sources(sources: list[dict]) -> None:
     if not sources:
         return
 
-    with st.expander(f"📎 Sources ({len(sources)})", expanded=False):
+    with st.expander(f"Sources ({len(sources)})", expanded=False):
         for source in sources:
-            st.caption(
-                f"{source['file_name']} · page {source['page']} · {source['doc_type']}"
-            )
+            label = DOC_TYPE_LABELS.get(source["doc_type"], source["doc_type"])
+            st.caption(f"{source['file_name']} · page {source['page']} · {label}")
 
 
 def _render_turn(label: str, question: str, answer: str, result: dict) -> None:
@@ -31,15 +31,14 @@ def _render_turn(label: str, question: str, answer: str, result: dict) -> None:
     _render_sources(result.get("sources", []))
 
     if not result.get("grounded", False):
-        st.caption(
-            "⚠️ This ideal answer could not be confirmed against your "
-            "uploaded material."
+        st.warning(
+            "This ideal answer could not be confirmed against your uploaded material."
         )
     st.divider()
 
 
 def render_interview_page(session_id: str) -> None:
-    st.subheader("🎤 Theory Mock Round")
+    st.subheader("Theory Mock Round")
 
     thread_key = f"interview_thread_{session_id}"
     state_key = f"interview_state_{session_id}"
@@ -56,7 +55,7 @@ def render_interview_page(session_id: str) -> None:
             key=f"interview_difficulty_{session_id}",
         )
 
-    if st.button("🎲 New Question", use_container_width=True):
+    if st.button("New Question", use_container_width=True):
         try:
             with st.spinner("Generating a question..."):
                 result = generate_grounded_question(
@@ -106,7 +105,7 @@ def render_interview_page(session_id: str) -> None:
         "Your answer", key=f"interview_answer_{session_id}_{pending['followup_number']}"
     )
 
-    if st.button("✅ Submit Answer", use_container_width=True):
+    if st.button("Submit Answer", use_container_width=True):
         if not answer.strip():
             st.warning("Write an answer before submitting.")
         else:

@@ -25,8 +25,16 @@ def _invoke_with_retry(llm, prompt, max_attempts: int = 3):
 
 def _strip_json_fence(text: str) -> str:
     text = text.strip()
-    match = re.match(r"^```(?:json)?\s*(.*?)\s*```$", text, re.DOTALL)
-    return match.group(1).strip() if match else text
+
+    fence_match = re.search(r"```(?:json)?\s*(.*?)\s*```", text, re.DOTALL)
+    if fence_match:
+        return fence_match.group(1).strip()
+
+    brace_match = re.search(r"\{.*\}", text, re.DOTALL)
+    if brace_match:
+        return brace_match.group(0)
+
+    return text
 
 
 def analyze_resume(resume_context: str, jd_context: str) -> dict:
@@ -36,12 +44,15 @@ def analyze_resume(resume_context: str, jd_context: str) -> dict:
     )
 
     llm = get_llm()
-    response = _invoke_with_retry(llm, prompt)
 
-    try:
-        return json.loads(_strip_json_fence(response.content))
-    except json.JSONDecodeError:
-        return {"error": "Could not parse the analysis. Please try again."}
+    for attempt in range(3):
+        response = _invoke_with_retry(llm, prompt)
+        try:
+            return json.loads(_strip_json_fence(response.content))
+        except json.JSONDecodeError:
+            continue
+
+    return {"error": "Could not parse the analysis. Please try again."}
 
 
 def ground_check_verdicts(verdicts: list[dict], resume_context: str) -> list[dict]:

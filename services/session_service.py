@@ -13,6 +13,7 @@ def _session_to_dict(session: PrepSession) -> dict:
         "jd_text": session.jd_text,
         "status": session.status,
         "created_at": session.created_at,
+        "owner_id": session.owner_id,
     }
 
 
@@ -28,10 +29,11 @@ def _document_to_dict(document: Document) -> dict:
     }
 
 
-def create_session(company_name: str, role: str, jd_text: str = "") -> dict:
+def create_session(owner_id: str, company_name: str, role: str, jd_text: str = "") -> dict:
     with get_db() as db:
         session = PrepSession(
             id=str(uuid.uuid4()),
+            owner_id=owner_id,
             company_name=company_name,
             role=role,
             jd_text=jd_text,
@@ -41,24 +43,32 @@ def create_session(company_name: str, role: str, jd_text: str = "") -> dict:
         return _session_to_dict(session)
 
 
-def list_sessions(include_archived: bool = False) -> list[dict]:
+def list_sessions(owner_id: str, include_archived: bool = False) -> list[dict]:
     with get_db() as db:
-        query = db.query(PrepSession)
+        query = db.query(PrepSession).filter(PrepSession.owner_id == owner_id)
         if not include_archived:
             query = query.filter(PrepSession.status != "archived")
         sessions = query.order_by(PrepSession.created_at.desc()).all()
         return [_session_to_dict(s) for s in sessions]
 
 
-def get_session(session_id: str) -> dict | None:
+def get_session(session_id: str, owner_id: str) -> dict | None:
     with get_db() as db:
-        session = db.query(PrepSession).filter(PrepSession.id == session_id).first()
+        session = (
+            db.query(PrepSession)
+            .filter(PrepSession.id == session_id, PrepSession.owner_id == owner_id)
+            .first()
+        )
         return _session_to_dict(session) if session else None
 
 
-def archive_session(session_id: str) -> None:
+def archive_session(session_id: str, owner_id: str) -> None:
     with get_db() as db:
-        session = db.query(PrepSession).filter(PrepSession.id == session_id).first()
+        session = (
+            db.query(PrepSession)
+            .filter(PrepSession.id == session_id, PrepSession.owner_id == owner_id)
+            .first()
+        )
         if session:
             session.status = "archived"
 
