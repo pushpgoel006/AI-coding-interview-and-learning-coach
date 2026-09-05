@@ -10,6 +10,7 @@ from services.session_service import delete_session_documents, record_document
 from ui.auth_page import get_cookie_manager, render_auth_page
 from ui.chat import render_chat
 from ui.dashboard_page import render_dashboard_page
+from ui.dsa_page import render_dsa_page
 from ui.interview_page import render_interview_page
 from ui.resume_page import render_resume_page
 from ui.session_selector import render_session_selector
@@ -60,7 +61,10 @@ def main() -> None:
     with st.sidebar:
         st.write(f"Signed in as **{current_user['display_name']}**")
         if st.button("Log out"):
-            cookie_manager.delete("user_id", key="delete_login_cookie")
+            try:
+                cookie_manager.delete("user_id", key="delete_login_cookie")
+            except KeyError:
+                pass
             del st.session_state["current_user"]
             time.sleep(0.5)
             st.rerun()
@@ -116,8 +120,8 @@ def main() -> None:
             st.sidebar.success("This session's documents were cleared.")
             st.rerun()
 
-    chat_tab, resume_tab, interview_tab, dashboard_tab = st.tabs(
-        ["Chat", "Resume Check", "Theory Round", "Dashboard"]
+    chat_tab, resume_tab, interview_tab, dsa_tab, dashboard_tab = st.tabs(
+        ["Chat", "Resume Check", "Theory Round", "DSA Round", "Dashboard"]
     )
 
     with chat_tab:
@@ -128,6 +132,9 @@ def main() -> None:
 
     with interview_tab:
         render_interview_page(session_id)
+
+    with dsa_tab:
+        render_dsa_page(session_id)
 
     with dashboard_tab:
         render_dashboard_page(session_id)

@@ -113,3 +113,23 @@ class ResumeReview(Base):
     missing_skills = Column(JSON, default=list)
     suggestions    = Column(Text, default="")
     created_at     = Column(DateTime, default=datetime.utcnow)
+
+
+class DsaAttempt(Base):
+    __tablename__ = "dsa_attempts"
+
+    id                = Column(Integer, primary_key=True, autoincrement=True)
+    session_id        = Column(String, ForeignKey("prep_sessions.id"))
+    topic             = Column(String, nullable=True)
+    difficulty        = Column(String, nullable=True)
+    problem_slug      = Column(String, nullable=True)
+    problem_title     = Column(String, nullable=True)
+    code              = Column(Text)
+    language          = Column(String, default="python")
+    score             = Column(Integer)
+    correctness_notes = Column(Text, default="")
+    complexity_notes  = Column(Text, default="")
+    suggestions       = Column(Text, default="")
+    created_at        = Column(DateTime, default=datetime.utcnow)
+
+    session = relationship("PrepSession")

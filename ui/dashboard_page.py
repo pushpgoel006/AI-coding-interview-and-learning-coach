@@ -8,7 +8,10 @@ from services.analytics import (
     get_resume_fit_score,
     get_weakest_topics,
     get_readiness_score,
+    get_dsa_average,
+    get_dsa_topic_scores,
 )
+from services.dsa_service import list_attempts as list_dsa_attempts
 from agents.recommender import generate_recommendation
 from ui.sidebar import DOC_TYPE_LABELS
 
@@ -40,6 +43,9 @@ def render_dashboard_page(session_id: str) -> None:
     trend = get_theory_trend(session_id)
     by_topic = get_score_by_topic(session_id)
     weakest = get_weakest_topics(session_id, n=3)
+    dsa_average = get_dsa_average(session_id)
+    dsa_topics = get_dsa_topic_scores(session_id)
+    dsa_attempts = list_dsa_attempts(session_id)
 
     with st.container(border=True):
         col1, col2, col3, col4 = st.columns(4)
@@ -60,10 +66,14 @@ def render_dashboard_page(session_id: str) -> None:
             st.caption("Latest check" if resume_fit is not None else "Not checked yet")
 
         with col4:
-            st.metric("DSA", "—")
-            st.caption("Not built yet")
+            st.metric("DSA", f"{dsa_average:.1f}/10" if dsa_average is not None else "—")
+            st.caption(
+                f"{len(dsa_attempts)} attempt{'s' if len(dsa_attempts) != 1 else ''}"
+                if dsa_attempts
+                else "Not attempted yet"
+            )
 
-    if readiness is None and not trend and resume_fit is None:
+    if readiness is None and not trend and resume_fit is None and dsa_average is None:
         st.info(
             "Not enough data yet -- run a theory round or a resume check "
             "in this session to populate the dashboard."
@@ -160,9 +170,13 @@ def render_dashboard_page(session_id: str) -> None:
 
     st.divider()
 
-    with st.container(border=True):
-        st.markdown("**DSA Solve Rate**")
-        st.caption(
-            "Not available yet -- the DSA round is a separate module that "
-            "hasn't been built for this project yet."
-        )
+    st.markdown("**DSA Performance by Topic**")
+    if dsa_topics:
+        for entry in sorted(dsa_topics, key=lambda item: item["average_score"]):
+            color = _score_color(entry["average_score"], 10)
+            st.markdown(
+                f":{color}[**{entry['topic']}**] — {entry['average_score']:.1f}/10"
+            )
+            st.progress(min(entry["average_score"] / 10, 1.0))
+    else:
+        st.caption("No DSA attempts yet -- try the DSA round with a topic set.")

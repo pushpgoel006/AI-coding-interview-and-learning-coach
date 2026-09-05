@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from database.db import get_db
-from database.models import Interview, Followup, ResumeReview
+from database.models import Interview, Followup, ResumeReview, DsaAttempt
 
 
 def _theory_entries(db, session_id: str) -> list[dict]:
@@ -79,6 +79,45 @@ def get_weakest_topics(session_id: str, n: int = 3) -> list[dict]:
     topics = get_score_by_topic(session_id)
     topics.sort(key=lambda item: item["average_score"])
     return topics[:n]
+
+
+def _dsa_entries(db, session_id: str) -> list[dict]:
+    attempts = (
+        db.query(DsaAttempt)
+        .filter(DsaAttempt.session_id == session_id, DsaAttempt.score.isnot(None))
+        .all()
+    )
+    return [
+        {"date": attempt.created_at, "topic": attempt.topic, "score": attempt.score}
+        for attempt in attempts
+    ]
+
+
+def get_dsa_average(session_id: str) -> float | None:
+    with get_db() as db:
+        entries = _dsa_entries(db, session_id)
+
+    if not entries:
+        return None
+
+    return sum(entry["score"] for entry in entries) / len(entries)
+
+
+def get_dsa_topic_scores(session_id: str) -> list[dict]:
+    with get_db() as db:
+        entries = _dsa_entries(db, session_id)
+
+    by_topic: dict[str, list[int]] = {}
+    for entry in entries:
+        topic = entry["topic"]
+        if not topic:
+            continue
+        by_topic.setdefault(topic, []).append(entry["score"])
+
+    return [
+        {"topic": topic, "average_score": sum(scores) / len(scores)}
+        for topic, scores in by_topic.items()
+    ]
 
 
 def get_readiness_score(session_id: str) -> int | None:
